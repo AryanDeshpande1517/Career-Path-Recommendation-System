@@ -1,6 +1,4 @@
-# Project Title
-
- Career Path Recommendation System
+# Career Path Recommendation System
 
 ## 📖 Overview
 
