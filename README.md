@@ -6,14 +6,14 @@ Career Advisor AI is a Python-based conversational tool that helps users discove
 
 ## 📂 Dataset
 
-Total careers = 18 [across 6 fields]
+Total careers = 90 [across 6 fields]
 
 Each career includes:
 - Detailed description.
 - Average salary figure.
 - Required skills/background.
 - Fields include 2 refining questions each.
-- 5-15 keywords per field for interest matching.
+- 70-80 keywords per field for interest matching.
 
 Data Sources:
 - Salary data compiled from BLS and industry reports (US averages).
