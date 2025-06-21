@@ -1,20 +1,9 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
 import re
 import uvicorn
-
-# Add CORS middleware
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 career_database = {
     "stem": {
@@ -275,95 +264,53 @@ def root():
             button { margin-top: 20px; width: 100%; padding: 10px; background: #0070f3; color: #fff; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
             button:hover { background: #005bb5; }
             .result { margin-top: 20px; padding: 15px; background: #e6f7ff; border-radius: 4px; }
-            #questions-section { display: none; }
-            #submit-btn { display: none; }
         </style>
     </head>
     <body>
         <div class="container">
             <h2>Career Recommendation System</h2>
             <form id="careerForm">
-                <div id="initial-input">
-                    <label for="user_input">What do you enjoy most?</label>
-                    <input type="text" id="user_input" name="user_input" required 
-                           placeholder="e.g. programming, graphic design, sports medicine">
-                    <button type="button" id="next-btn">Next</button>
-                </div>
-                
-                <div id="questions-section">
-                    <div id="dynamic-questions"></div>
-                    <button type="submit" id="submit-btn">Get Career Suggestion</button>
-                </div>
-                
-                <div class="result" id="result" style="display:none;"></div>
+                <label for="user_input">What do you enjoy most?</label>
+                <input type="text" id="user_input" name="user_input" required placeholder="e.g. programming, graphic design, sports medicine">
+                <label for="answer1">Answer 1:</label>
+                <input type="text" id="answer1" name="answer1" required placeholder="e.g. practical applications">
+                <label for="answer2">Answer 2:</label>
+                <input type="text" id="answer2" name="answer2" required placeholder="e.g. system building">
+                <button type="submit">Get Career Suggestion</button>
             </form>
+            <div class="result" id="result" style="display:none;"></div>
         </div>
         <script>
-        document.getElementById('next-btn').addEventListener('click', async function() {
-    const userInput = document.getElementById('user_input').value.trim();
-    if (!userInput) {
-        alert('Please enter what you enjoy most');
-        return;
-    }
-
-    try {
-        const response = await fetch('./get-questions', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ user_input: userInput })
+        document.getElementById('careerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const user_input = document.getElementById('user_input').value;
+            const answer1 = document.getElementById('answer1').value;
+            const answer2 = document.getElementById('answer2').value;
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
+            resultDiv.innerHTML = '';
+            try {
+                const response = await fetch('./suggest-career', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_input, answers: [answer1, answer2] })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    resultDiv.innerHTML = `<b>Error:</b> ${data.error}`;
+                } else {
+                    resultDiv.innerHTML = `<b>Field:</b> ${data.field}<br><b>Career:</b> ${data.career}<br><b>Because:</b> ${data.explanation}`;
+                }
+                resultDiv.style.display = 'block';
+            } catch (err) {
+                resultDiv.innerHTML = 'An error occurred.';
+                resultDiv.style.display = 'block';
+            }
         });
-        
-        const data = await response.json();
-        
-        if (!response.ok || data.error) {
-            throw new Error(data.error || 'Unknown error occurred');
-        }
-        
-        // Display questions
-        const questionsDiv = document.getElementById('dynamic-questions');
-        questionsDiv.innerHTML = '';
-        
-        data.questions.forEach((question, index) => {
-            const questionDiv = document.createElement('div');
-            questionDiv.innerHTML = `
-                <label for="answer${index}">${question}</label>
-                <input type="text" id="answer${index}" name="answer${index}" required>
-            `;
-            questionsDiv.appendChild(questionDiv);
-        });
-        
-        // Show next section
-        document.getElementById('initial-input').style.display = 'none';
-        document.getElementById('questions-section').style.display = 'block';
-        document.getElementById('submit-btn').style.display = 'block';
-        
-    } catch (error) {
-        console.error('Error:', error);
-        alert(`Error: ${error.message}\n\nPlease try a different interest or more specific term.`);
-    }
-});
         </script>
     </body>
     </html>
     """
-
-@app.post("/get-questions")
-def get_questions(req: CareerRequest):
-    try:
-        field = get_field(req.user_input)
-        if not field:
-            return {"error": "Could not determine field from your interests. Please try being more specific."}
-        
-        return {
-            "status": "success",
-            "field": field,
-            "questions": career_database[field]["questions"]
-        }
-    except Exception as e:
-        return {"error": f"Server error: {str(e)}"}
 
 @app.post("/suggest-career")
 def suggest_career(req: CareerRequest):
@@ -371,7 +318,7 @@ def suggest_career(req: CareerRequest):
     if not field:
         return {"error": "Could not determine field from user input."}
     if len(req.answers) < 2:
-        return {"error": "Please provide answers for both questions."}
+        return {"error": "Please provide two answers for the field questions."}
     career, explanation = get_career_suggestion(field, req.answers)
     return {
         "field": field,
